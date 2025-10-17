@@ -224,3 +224,50 @@ If we see the full event message in any [JSON beautifier], we can check the payl
    [PlOd]: <https://github.com/joemccann/dillinger/tree/master/plugins/onedrive/README.md>
    [PlMe]: <https://github.com/joemccann/dillinger/tree/master/plugins/medium/README.md>
    [PlGa]: <https://github.com/RahulHP/dillinger/blob/master/plugins/googleanalytics/README.md>
+
+# Update 17/10 Quick Start
+## Step 1: Build docker
+
+```
+docker-compose -f docker-compose-mysql-dbz.yml up -d
+```
+
+## Step 2: Add connector
+From your machine
+```
+curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" localhost:8083/connectors/ --data "@debezium-mysql-source-connector.json" 
+
+HTTP/1.1 201 Created
+Date: Sun, 03 Jul 2022 02:59:30 GMT
+Location: http://localhost:8083/connectors/inventory-connector
+Content-Type: application/json
+Content-Length: 495
+Server: Jetty(9.4.43.v20210629)
+
+{"name":"inventory-connector","config":{"connector.class":"io.debezium.connector.mysql.MySqlConnector","tasks.max":"1","database.hostname":"mysql","database.port":"3306","database.user":"debezium","database.password":"dbz","database.server.id":"184054","database.server.name":"dbserver1","database.include.list":"inventory","database.history.kafka.bootstrap.servers":"kafka:9092","database.history.kafka.topic":"schema-changes.inventory","name":"inventory-connector"},"tasks":[],"type":"source"}
+```
+
+## Step 3: OK, let's verify!
+Add new records to database
+```
+mysql> use inventory;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A    
+
+Database changed
+mysql> SELECT * FROM customers;
++------+------------+-----------+-----------------------+
+| id   | first_name | last_name | email                 |
++------+------------+-----------+-----------------------+
+| 1001 | Sally      | Thomas    | sally.thomas@acme.com |
+| 1002 | George     | Bailey    | gbailey@foobar.com    |
+| 1003 | Edward     | Walker    | ed@walker.com         |
+| 1004 | Anne       | Kretchmar | annek@noanswer.org    |
++------+------------+-----------+-----------------------+
+4 rows in set (0.00 sec)
+
+mysql> INSERT customers(first_name, last_name, email) VALUES("abc", "def", "abcdef@fake.com");
+Query OK, 1 row affected (0.02 sec)
+```
+
+And verify message at http://localhost:8085/ui/clusters/local/all-topics/dbserver1.inventory.customers/messages?keySerde=String&valueSerde=SchemaRegistry&limit=100
